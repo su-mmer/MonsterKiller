@@ -1,28 +1,95 @@
-const ATTACK_VALUE = 10;  // 상수는 대문자로 이름, 언더바 사용
+const ATTACK_VALUE = 10;  // �긽�닔�뒗 ���臾몄옄濡� �씠由�, �뼵�뜑諛� �궗�슜
 const STRONG_ATTACK_VALUE = 17;
 const MONSTER_ATTACK_VALUE = 14;
 const HEAL_VALUE = 20;
 
-let chosenMaxLife = 100;
+const MODE_ATTACK = 'ATTACK';
+const MODE_STRONG_ATTACK = 'STRONG_ATTACK';
+const LOG_EVENT_PLAYER_ATTACK = 'PLAYER_ATTACK';
+const LOG_EVENT_PLAYER_STRONG_ATTACK = 'PLAYER_STRONG_ATTACK';
+const LOG_EVENT_MONSTER_ATTACK = 'MONSTER_ATTACK';
+const LOG_EVENT_PLAYER_HEAL = 'PLAYER_HEAL';
+const LOG_EVENT_GAME_OVER = 'GAME_OVER';
+
+const enteredValue = prompt('Maximum life for you and the monster.', '100');
+
+let chosenMaxLife = parseInt(enteredValue);
+let battleLog = [];
+
+if (isNaN(chosenMaxLife) || chosenMaxLife <= 0) {
+    chosenMaxLife = 100;
+}
 let currentMonsterHealth = chosenMaxLife;
 let currentPlayerHealth = chosenMaxLife;
 let hasBonusLife = true;
 
 adjustHealthBars(chosenMaxLife);
 
+function writeToLog(ev, val, monsterHealth, playerHealth) {
+    let logEntry = {
+        event: ev,
+        value: val,
+        finalMonsterHealth: monsterHealth,
+        finalPlayerHealth: playerHealth
+    }
+    if (ev === LOG_EVENT_PLAYER_ATTACK) {
+        logEntry.target = 'MONSTER';  //logEntry 객체에 대한 동적인 접근 방식
+    } else if (ev === LOG_EVENT_PLAYER_STRONG_ATTACK) {
+        logEntry = {
+            event: ev,
+            value: val,
+            target: 'MONSTER',
+            finalMonsterHealth: monsterHealth,
+            finalPlayerHealth: playerHealth
+        };
+    } else if (ev === LOG_EVENT_MONSTER_ATTACK) {
+        logEntry = {
+            event: ev,
+            value: val,
+            target: 'MONSTER',
+            finalMonsterHealth: monsterHealth,
+            finalPlayerHealth: playerHealth
+        };
+    } else if (ev === LOG_EVENT_PLAYER_HEAL) {
+        logEntry = {
+            event: ev,
+            value: val,
+            target: 'MONSTER',
+            finalMonsterHealth: monsterHealth,
+            finalPlayerHealth: playerHealth
+        };
+    } else if (ev === LOG_EVENT_GAME_OVER) {
+        logEntry = {
+            event: ev,
+            value: val,
+            finalMonsterHealth: monsterHealth,
+            finalPlayerHealth: playerHealth
+        };
+    }
+    logEntry = {
+        event: ev,
+        value: val,
+        target: 'MONSTER',
+        finalMonsterHealth: monsterHealth,
+        finalPlayerHealth: playerHealth
+    };
+    battleLog.push(logEntry);
+}
+
 function reset() {
-    let currentMonsterHealth = chosenMaxLife;
-    let currentPlayerHealth = chosenMaxLife;
+    currentMonsterHealth = chosenMaxLife;
+    currentPlayerHealth = chosenMaxLife;
     resetGame(chosenMaxLife);
 }
 
-// 한 round가 끝났는지 검사
+// �븳 round媛� �걹�궗�뒗吏� 寃��궗
 function endRound() {
     const initialPlayerHealth = currentPlayerHealth;
     const playerDamage = dealPlayerDamage(MONSTER_ATTACK_VALUE);
     currentPlayerHealth -= playerDamage;
+    writeToLog(LOG_EVENT_MONSTER_ATTACK, playerDamage, currentMonsterHealth, currentPlayerHealth);
 
-    // 현재 체력이 0이하이며 bonusLife를 갖고 있을 경우
+    // �쁽�옱 泥대젰�씠 0�씠�븯�씠硫� bonusLife瑜� 媛뽮퀬 �엳�쓣 寃쎌슦
     if (currentPlayerHealth <= 0 && hasBonusLife) {
         hasBonusLife = false;
         removeBonusLife();
@@ -31,16 +98,25 @@ function endRound() {
         alert('You would be dead but the bonus life saved you!');
     }
 
-    // bonusLife가 없을 경우 게임 끝
+    // bonusLife媛� �뾾�쓣 寃쎌슦 寃뚯엫 �걹
     if (currentMonsterHealth <= 0 && currentPlayerHealth > 0) {
         alert('You won!');
+        writeToLog(
+            LOG_EVENT_GAME_OVER, 'PLAYER WON!', currentMonsterHealth, currentPlayerHealth
+        );
     } else if (currentPlayerHealth <= 0 && currentMonsterHealth > 0) {
         alert('You lost!');
+        writeToLog(
+            LOG_EVENT_GAME_OVER, 'MONSTER WON!', currentMonsterHealth, currentPlayerHealth
+        );
     } else if (currentPlayerHealth <= 0 && currentMonsterHealth <= 0) {
         alert('You have a draw!');
+        writeToLog(
+            LOG_EVENT_GAME_OVER, 'A DRAW!', currentMonsterHealth, currentPlayerHealth
+        );
     }
 
-    // 게임이 끝났으면 리셋
+    // 寃뚯엫�씠 �걹�궗�쑝硫� 由ъ뀑
     if (currentMonsterHealth <= 0 || currentPlayerHealth <= 0) {
         reset();
     }
@@ -48,23 +124,27 @@ function endRound() {
 
 function attackMonster(mode) {
     let maxDamage;
-    if (mode === ' ATTACK') {
+    let logEvent;
+    if (mode === MODE_ATTACK) {
         maxDamage = ATTACK_VALUE;
-    } else if (mode === 'STRONG_ATTACK') {
+        logEvent = LOG_EVENT_PLAYER_ATTACK;
+    } else if (mode === MODE_STRONG_ATTACK) {
         maxDamage = STRONG_ATTACK_VALUE;
+        logEvent = LOG_EVENT_PLAYER_STRONG_ATTACK;
     }
 
     const damage = dealMonsterDamage(maxDamage);
     currentMonsterHealth -= damage;
+    writeToLog(logEvent, damage, currentMonsterHealth, currentPlayerHealth);
     endRound();
 }
 
 function attackHandler() {
-    attackMonster('ATTACK');
+    attackMonster(MODE_ATTACK);
 }
 
 function strongAttackHandler() {
-    attackMonster('STRONG_ATTACK');
+    attackMonster(MODE_STRONG_ATTACK);
 }
 
 function healPlayerHandler() {
@@ -77,9 +157,15 @@ function healPlayerHandler() {
     }
     increasePlayerHealth(healValue);
     currentPlayerHealth += healValue;
-    endRound();  // heal도 한 턴으로 들어감
+    writeToLog(LOG_EVENT_PLAYER_HEAL, healValue, currentMonsterHealth, currentPlayerHealth);
+    endRound();  // heal�룄 �븳 �꽩�쑝濡� �뱾�뼱媛�
+}
+
+function printLogHandler() {
+    console.log(battleLog);
 }
 
 attackBtn.addEventListener('click', attackHandler);
 strongAttackBtn.addEventListener('click', strongAttackHandler);
 healBtn.addEventListener('click', healPlayerHandler);
+logBtn.addEventListener('click', printLogHandler)
